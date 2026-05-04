@@ -1,6 +1,39 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
 
 export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const router = useRouter();
+  const supabase = createClient();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setError("E-mail ou senha incorretos.");
+      setLoading(false);
+    } else {
+      // Deu certo! Manda o usuário para a página inicial
+      router.push("/home");
+      router.refresh();
+    }
+  };
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-white p-4">
       <div className="w-full max-w-sm space-y-8">
@@ -15,12 +48,21 @@ export default function LoginPage() {
         </div>
 
         {/* Formulário */}
-        <form className="mt-8 space-y-4">
+        <form onSubmit={handleLogin} className="mt-8 space-y-4">
+          {error && (
+            <div className="text-red-500 text-sm bg-red-50 p-3 rounded">
+              {error}
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-zinc-700">E-mail</label>
             <input
               type="email"
               placeholder="seu@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
               className="mt-1 w-full rounded-lg border border-zinc-300 px-4 py-2 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 text-zinc-900"
             />
           </div>
@@ -35,15 +77,19 @@ export default function LoginPage() {
             <input
               type="password"
               placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
               className="mt-1 w-full rounded-lg border border-zinc-300 px-4 py-2 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 text-zinc-900"
             />
           </div>
 
           <button
             type="submit"
-            className="w-full rounded-lg bg-zinc-900 py-3 font-medium text-white hover:bg-zinc-800 transition-colors"
+            disabled={loading}
+            className="w-full rounded-lg bg-zinc-900 py-3 font-medium text-white hover:bg-zinc-800 transition-colors disabled:opacity-50"
           >
-            Entrar
+            {loading ? "Entrando..." : "Entrar"}
           </button>
         </form>
 
