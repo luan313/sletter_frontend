@@ -1,1 +1,79 @@
 @import "tailwindcss";
+
+/* ===== Paleta de Cores Sletter ===== */
+:root {
+  --dust-grey: #dad7cdff;
+  --dry-sage: #a3b18aff;
+  --fern: #588157ff;
+  --hunter-green: #3a5a40ff;
+  --pine-teal: #344e41ff;
+
+  --bg-primary: var(--dust-grey);
+  --bg-card: #f0ede8;
+  --text-primary: var(--pine-teal);
+  --text-secondary: var(--hunter-green);
+  --text-muted: #6b7a6d;
+  --accent: var(--fern);
+  --accent-light: var(--dry-sage);
+  --border: #c4c0b6;
+}
+
+/* ===== Base ===== */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* ===== Animações globais ===== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(88, 129, 87, 0.3); }
+  50% { box-shadow: 0 0 20px 4px rgba(88, 129, 87, 0.15); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out both;
+}
+
+.animate-fade-in-scale {
+  animation: fadeInScale 0.3s ease-out both;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.25s ease-out both;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.6s ease-out both;
+}
+
+/* Stagger delays for list items */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
