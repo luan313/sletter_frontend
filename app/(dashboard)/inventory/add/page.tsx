@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { Suspense, useMemo, useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/utils/api";
 
@@ -12,8 +12,21 @@ interface Collection {
 
 type GameStatus = "unplayed" | "playing" | "completed";
 type MediaType = "movie" | "tv";
+type MediaWatchStatus = "watched" | "not_watched" | "in_progress";
 
 export default function InventoryAddPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen w-full flex items-center justify-center" style={{ backgroundColor: "var(--bg-primary)" }}>
+        <div className="w-10 h-10 border-3 rounded-full animate-spin" style={{ borderColor: "var(--dry-sage)", borderTopColor: "var(--pine-teal)" }} />
+      </main>
+    }>
+      <InventoryAddContent />
+    </Suspense>
+  );
+}
+
+function InventoryAddContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -22,13 +35,14 @@ export default function InventoryAddPage() {
   const title = searchParams.get("title") || "Sem titulo";
   const image = searchParams.get("image") || "";
   const mediaTypeFromQuery = searchParams.get("mediaType");
+  const collectionIdFromQuery = searchParams.get("collectionId") || "";
 
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loadingCollections, setLoadingCollections] = useState(true);
   const [collectionError, setCollectionError] = useState<string | null>(null);
 
-  const [selectedCollectionId, setSelectedCollectionId] = useState("");
-  const [watched, setWatched] = useState(false);
+  const [selectedCollectionId, setSelectedCollectionId] = useState(collectionIdFromQuery);
+  const [mediaWatchStatus, setMediaWatchStatus] = useState<MediaWatchStatus>("not_watched");
   const [gameStatus, setGameStatus] = useState<GameStatus>("unplayed");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -73,17 +87,17 @@ export default function InventoryAddPage() {
 
     try {
       if (kind === "media") {
-        await apiFetch("/add/media", {
+        await apiFetch("/media/add_on_lib", {
           method: "POST",
           body: JSON.stringify({
             tmdb_id: String(itemId),
             media_type: mediaType,
-            watched,
+            watched: mediaWatchStatus,
             collection_id: collectionValue,
           }),
         });
       } else {
-        await apiFetch("/add/game", {
+        await apiFetch("/game/add_on_lib", {
           method: "POST",
           body: JSON.stringify({
             rawg_id: Number(itemId),
@@ -224,17 +238,20 @@ export default function InventoryAddPage() {
                     <p className="text-sm font-semibold mb-3" style={{ color: "var(--hunter-green)" }}>
                       Configuracoes de midia
                     </p>
-                    <label className="inline-flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={watched}
-                        onChange={(e) => setWatched(e.target.checked)}
-                        className="h-4 w-4 rounded"
-                      />
-                      <span className="text-sm" style={{ color: "var(--text-muted)" }}>
-                        Marcar como assistido
-                      </span>
+                    <label htmlFor="media-watched-status" className="block text-sm font-semibold mb-2" style={{ color: "var(--hunter-green)" }}>
+                      Status de consumo
                     </label>
+                    <select
+                      id="media-watched-status"
+                      value={mediaWatchStatus}
+                      onChange={(e) => setMediaWatchStatus(e.target.value as MediaWatchStatus)}
+                      className="w-full rounded-xl px-4 py-3 text-sm transition-all duration-300 focus:outline-none"
+                      style={{ border: "1.5px solid var(--border)", color: "var(--pine-teal)", backgroundColor: "#fff" }}
+                    >
+                      <option value="not_watched">Nao assistido</option>
+                      <option value="in_progress">Em progresso</option>
+                      <option value="watched">Assistido</option>
+                    </select>
                   </div>
                 ) : (
                   <div className="rounded-xl p-4" style={{ backgroundColor: "rgba(163,177,138,0.15)", border: "1px solid rgba(163,177,138,0.4)" }}>

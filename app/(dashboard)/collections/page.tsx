@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/utils/api";
 
 interface Item {
   id?: number;
+  tmdb_id?: number;
+  rawg_id?: number;
   title?: string;
   name?: string;
   poster_path?: string;
@@ -23,9 +26,11 @@ interface Collection {
 }
 
 export default function CollectionsOverviewPage() {
+  const router = useRouter();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeCollectionMenuId, setActiveCollectionMenuId] = useState<string | null>(null);
 
   const fetchCollectionsData = useCallback(async () => {
     try {
@@ -46,6 +51,17 @@ export default function CollectionsOverviewPage() {
     fetchCollectionsData();
   }, [fetchCollectionsData]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const clickInsideMenu = (event.target as HTMLElement | null)?.closest?.("[data-collection-menu-root]");
+      if (!clickInsideMenu) {
+        setActiveCollectionMenuId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const getTitle = (item: Item) => item.title || item.name || "Sem titulo";
   const getImage = (item: Item) => {
     if (item.poster_path) return `https://image.tmdb.org/t/p/w300${item.poster_path}`;
@@ -60,6 +76,16 @@ export default function CollectionsOverviewPage() {
     if (item.status === "completed") return "Finalizado";
     if (item.status === "playing") return "Jogando";
     return "Nao jogado";
+  };
+
+  const handleItemClick = (item: Item) => {
+    if (item.media_type === "movie" && item.tmdb_id) {
+      router.push(`/movie/${item.tmdb_id}`);
+    } else if (item.media_type === "tv" && item.tmdb_id) {
+      router.push(`/tv/${item.tmdb_id}`);
+    } else if (item.rawg_id) {
+      router.push(`/game/${item.rawg_id}`);
+    }
   };
 
   return (
@@ -143,19 +169,61 @@ export default function CollectionsOverviewPage() {
               const items = collection.preview_items ?? [];
               return (
                 <section key={collection.id} className="animate-slide-up" style={{ animationDelay: `${collectionIndex * 0.06}s` }}>
-                  <div className="flex items-center gap-3 mb-5">
-                    <h2 className="text-2xl font-bold" style={{ color: "var(--hunter-green)" }}>
-                      {collection.name}
-                    </h2>
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: "rgba(163,177,138,0.3)", color: "var(--hunter-green)" }}>
-                      {items.length}
-                    </span>
+                  <div className="flex items-center justify-between gap-3 mb-5">
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-2xl font-bold" style={{ color: "var(--hunter-green)" }}>
+                        {collection.name}
+                      </h2>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: "rgba(163,177,138,0.3)", color: "var(--hunter-green)" }}>
+                        {items.length}
+                      </span>
+                    </div>
+                    <div className="relative" data-collection-menu-root>
+                      <button
+                        type="button"
+                        onClick={() => setActiveCollectionMenuId((prev) => (prev === collection.id ? null : collection.id))}
+                        className="h-9 w-9 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer"
+                        style={{ backgroundColor: "rgba(88,129,87,0.12)", color: "var(--hunter-green)" }}
+                        aria-label={`Ações da coleção ${collection.name}`}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx="12" cy="5" r="1.8" />
+                          <circle cx="12" cy="12" r="1.8" />
+                          <circle cx="12" cy="19" r="1.8" />
+                        </svg>
+                      </button>
+                      {activeCollectionMenuId === collection.id && (
+                        <div
+                          className="absolute right-0 mt-2 min-w-[210px] rounded-xl shadow-lg py-1 z-30"
+                          style={{ backgroundColor: "#fff", border: "1px solid rgba(163,177,138,0.4)" }}
+                        >
+                          <Link href={`/collections/${collection.id}/add`} className="block px-4 py-2 text-sm font-medium hover:bg-black/5" style={{ color: "var(--pine-teal)" }}>
+                            Adicionar obra
+                          </Link>
+                          <button type="button" className="w-full text-left px-4 py-2 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
+                            Editar coleção
+                          </button>
+                          <button type="button" className="w-full text-left px-4 py-2 text-sm font-medium" style={{ color: "#b91c1c" }}>
+                            Excluir coleção
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {items.length === 0 ? (
-                    <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                      A coleção está vazia.
-                    </p>
+                    <div className="flex items-center justify-between gap-4">
+                      <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                        A coleção está vazia.
+                      </p>
+                      <Link
+                        href={`/collections/${collection.id}/add`}
+                        className="px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200"
+                        style={{ backgroundColor: "var(--fern)", color: "var(--dust-grey)" }}
+                      >
+                        Adicionar obra
+                      </Link>
+                    </div>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                       {items.map((item, index) => {
@@ -163,7 +231,8 @@ export default function CollectionsOverviewPage() {
                         return (
                           <article
                             key={`${collection.id}-${item.id ?? index}`}
-                            className="aspect-[2/3] w-full rounded-2xl shadow-md group overflow-hidden relative transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl animate-fade-in-scale"
+                            onClick={() => handleItemClick(item)}
+                            className="aspect-[2/3] w-full rounded-2xl shadow-md group overflow-hidden relative transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl animate-fade-in-scale cursor-pointer"
                             style={{ backgroundColor: "var(--hunter-green)", animationDelay: `${index * 0.03}s` }}
                           >
                             {image && <img src={image} alt={getTitle(item)} className="absolute inset-0 w-full h-full object-cover" />}

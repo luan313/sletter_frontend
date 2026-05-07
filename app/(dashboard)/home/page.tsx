@@ -8,6 +8,8 @@ import { apiFetch } from "@/utils/api";
 
 interface PreviewItem {
   id?: number;
+  tmdb_id?: number;
+  rawg_id?: number;
   title?: string;
   name?: string;
   poster_path?: string;
@@ -43,6 +45,7 @@ export default function HomePage() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [collectionProgress, setCollectionProgress] = useState<Record<string, number>>({});
   const [collectionTotalItems, setCollectionTotalItems] = useState<Record<string, number>>({});
+  const [activeCollectionMenuId, setActiveCollectionMenuId] = useState<string | null>(null);
 
   const profileRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -96,6 +99,10 @@ export default function HomePage() {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setProfileOpen(false);
       }
+      const clickInsideMenu = (event.target as HTMLElement | null)?.closest?.("[data-collection-menu-root]");
+      if (!clickInsideMenu) {
+        setActiveCollectionMenuId(null);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -141,6 +148,16 @@ export default function HomePage() {
     if (item.status === "completed") return "Finalizado";
     if (item.status === "playing") return "Jogando";
     return "Nao jogado";
+  };
+
+  const handleItemClick = (item: PreviewItem) => {
+    if (item.media_type === "movie" && item.tmdb_id) {
+      router.push(`/movie/${item.tmdb_id}`);
+    } else if (item.media_type === "tv" && item.tmdb_id) {
+      router.push(`/tv/${item.tmdb_id}`);
+    } else if (item.rawg_id) {
+      router.push(`/game/${item.rawg_id}`);
+    }
   };
 
   return (
@@ -215,6 +232,12 @@ export default function HomePage() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M3 3h7v7H3z"/><path d="M14 3h7v7h-7z"/><path d="M14 14h7v7h-7z"/><path d="M3 14h7v7H3z"/></svg>
               Inventário
             </Link>
+            <Link href="/collections"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold shadow-md transition-all duration-300 hover:scale-105 active:scale-95"
+              style={{ backgroundColor: 'var(--dry-sage)', color: 'var(--pine-teal)' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              Ver coleções
+            </Link>
             <button onClick={() => setShowCreateModal(true)}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold shadow-md transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer"
               style={{ backgroundColor: 'var(--pine-teal)', color: 'var(--dust-grey)' }}>
@@ -273,9 +296,44 @@ export default function HomePage() {
                       {col.preview_items.length} itens
                     </span>
                   </div>
-                  <Link href="/collections" className="text-sm font-semibold transition-colors duration-300 hover:underline underline-offset-4" style={{ color: 'var(--fern)' }}>
-                    Ver todos
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    {(collectionTotalItems[col.id] ?? 0) > 0 && (
+                      <div className="relative" data-collection-menu-root>
+                        <button
+                          type="button"
+                          onClick={() => setActiveCollectionMenuId((prev) => (prev === col.id ? null : col.id))}
+                          className="h-9 w-9 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer"
+                          style={{ backgroundColor: "rgba(88,129,87,0.12)", color: "var(--hunter-green)" }}
+                          aria-label={`Ações da coleção ${col.name}`}
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="5" r="1.8" />
+                            <circle cx="12" cy="12" r="1.8" />
+                            <circle cx="12" cy="19" r="1.8" />
+                          </svg>
+                        </button>
+                        {activeCollectionMenuId === col.id && (
+                          <div
+                            className="absolute right-0 mt-2 min-w-[210px] rounded-xl shadow-lg py-1 z-30"
+                            style={{ backgroundColor: "#fff", border: "1px solid rgba(163,177,138,0.4)" }}
+                          >
+                            <Link href={`/collections/${col.id}/add`} className="block px-4 py-2 text-sm font-medium hover:bg-black/5" style={{ color: "var(--pine-teal)" }}>
+                              Adicionar obra
+                            </Link>
+                            <button type="button" className="w-full text-left px-4 py-2 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
+                              Editar coleção
+                            </button>
+                            <button type="button" className="w-full text-left px-4 py-2 text-sm font-medium" style={{ color: "#b91c1c" }}>
+                              Excluir coleção
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <Link href={`/collections/${col.id}`} className="text-sm font-semibold transition-colors duration-300 hover:underline underline-offset-4" style={{ color: 'var(--fern)' }}>
+                      Ver coleção
+                    </Link>
+                  </div>
                 </div>
 
                 {(collectionTotalItems[col.id] ?? 0) === 0 ? (
@@ -307,6 +365,7 @@ export default function HomePage() {
                     const img = getItemImage(item);
                     return (
                       <div key={`${col.id}-${item.id || i}`}
+                        onClick={() => handleItemClick(item)}
                         className="aspect-[2/3] w-full rounded-2xl shadow-md cursor-pointer group overflow-hidden relative transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl animate-fade-in-scale"
                         style={{ backgroundColor: 'var(--hunter-green)', animationDelay: `${0.1 + i * 0.07}s` }}>
                         {img && <img src={img} alt={getItemTitle(item)} className="absolute inset-0 w-full h-full object-cover" />}
@@ -325,13 +384,38 @@ export default function HomePage() {
                     );
                   })}
 
-                  {col.preview_items.length < 5 && (
-                    <Link href="/discover"
-                      className="aspect-[2/3] w-full rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
-                      style={{ borderColor: 'rgba(88,129,87,0.4)', color: 'var(--fern)' }}>
-                      <span className="text-4xl mb-1 font-light">+</span>
-                      <span className="text-sm font-semibold">Adicionar</span>
-                    </Link>
+                  {(collectionTotalItems[col.id] ?? 0) === 0 && (
+                    <div className="relative" data-collection-menu-root>
+                      <button
+                        type="button"
+                        onClick={() => setActiveCollectionMenuId((prev) => (prev === col.id ? null : col.id))}
+                        className="aspect-[2/3] w-full rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
+                        style={{ backgroundColor: "rgba(88,129,87,0.08)", color: "var(--fern)" }}
+                      >
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx="12" cy="5" r="2" />
+                          <circle cx="12" cy="12" r="2" />
+                          <circle cx="12" cy="19" r="2" />
+                        </svg>
+                        <span className="text-sm font-semibold mt-2">Ações</span>
+                      </button>
+                      {activeCollectionMenuId === col.id && (
+                        <div
+                          className="absolute right-0 -top-2 min-w-[210px] rounded-xl shadow-lg py-1 z-30"
+                          style={{ backgroundColor: "#fff", border: "1px solid rgba(163,177,138,0.4)" }}
+                        >
+                          <Link href={`/collections/${col.id}/add`} className="block px-4 py-2 text-sm font-medium hover:bg-black/5" style={{ color: "var(--pine-teal)" }}>
+                            Adicionar obra
+                          </Link>
+                          <button type="button" className="w-full text-left px-4 py-2 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
+                            Editar coleção
+                          </button>
+                          <button type="button" className="w-full text-left px-4 py-2 text-sm font-medium" style={{ color: "#b91c1c" }}>
+                            Excluir coleção
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </section>

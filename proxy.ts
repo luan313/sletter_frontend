@@ -35,7 +35,10 @@ export async function proxy(request: NextRequest) {
     urlQueOUsuarioQuerIr.startsWith('/home') ||
     urlQueOUsuarioQuerIr.startsWith('/discover') ||
     urlQueOUsuarioQuerIr.startsWith('/inventory') ||
-    urlQueOUsuarioQuerIr.startsWith('/collections')
+    urlQueOUsuarioQuerIr.startsWith('/collections') ||
+    urlQueOUsuarioQuerIr.startsWith('/movie') ||
+    urlQueOUsuarioQuerIr.startsWith('/tv') ||
+    urlQueOUsuarioQuerIr.startsWith('/game')
   const isLandingPage = urlQueOUsuarioQuerIr === '/'
 
   // REGRA 1: Não tá logado e quer acessar a área restrita (/home)? Manda pro login.

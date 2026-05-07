@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/utils/api";
 
 interface CatalogMediaItem {
   id: number;
+  tmdb_id: number;
   title: string;
   poster_path?: string | null;
   media_type: "movie" | "tv";
@@ -14,6 +16,7 @@ interface CatalogMediaItem {
 
 interface CatalogGameItem {
   id: number;
+  rawg_id: number;
   title: string;
   background_image?: string | null;
   status: "unplayed" | "playing" | "completed";
@@ -26,6 +29,7 @@ interface FullCatalogResponse {
 }
 
 export default function InventoryPage() {
+  const router = useRouter();
   const [movies, setMovies] = useState<CatalogMediaItem[]>([]);
   const [series, setSeries] = useState<CatalogMediaItem[]>([]);
   const [games, setGames] = useState<CatalogGameItem[]>([]);
@@ -36,12 +40,7 @@ export default function InventoryPage() {
     try {
       setLoading(true);
       setError(null);
-      let data: FullCatalogResponse;
-      try {
-        data = await apiFetch<FullCatalogResponse>("/catalog");
-      } catch {
-        data = await apiFetch<FullCatalogResponse>("/catalog/all");
-      }
+      const data = await apiFetch<FullCatalogResponse>("/catalog/all");
       setMovies(data.movies ?? []);
       setSeries(data.series ?? []);
       setGames(data.games ?? []);
@@ -170,7 +169,8 @@ export default function InventoryPage() {
                   {movies.map((item, i) => (
                     <article
                       key={`movie-${item.id}`}
-                      className="aspect-[2/3] w-full rounded-2xl shadow-md group overflow-hidden relative transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl animate-fade-in-scale"
+                      onClick={() => router.push(`/movie/${item.tmdb_id}`)}
+                      className="aspect-[2/3] w-full rounded-2xl shadow-md group overflow-hidden relative transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl animate-fade-in-scale cursor-pointer"
                       style={{ backgroundColor: "var(--hunter-green)", animationDelay: `${i * 0.04}s` }}
                     >
                       {item.poster_path && (
@@ -209,7 +209,8 @@ export default function InventoryPage() {
                   {series.map((item, i) => (
                     <article
                       key={`series-${item.id}`}
-                      className="aspect-[2/3] w-full rounded-2xl shadow-md group overflow-hidden relative transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl animate-fade-in-scale"
+                      onClick={() => router.push(`/tv/${item.tmdb_id}`)}
+                      className="aspect-[2/3] w-full rounded-2xl shadow-md group overflow-hidden relative transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl animate-fade-in-scale cursor-pointer"
                       style={{ backgroundColor: "var(--hunter-green)", animationDelay: `${i * 0.04}s` }}
                     >
                       {item.poster_path && (
@@ -248,7 +249,8 @@ export default function InventoryPage() {
                   {games.map((item, i) => (
                     <article
                       key={`game-${item.id}`}
-                      className="aspect-[2/3] w-full rounded-2xl shadow-md group overflow-hidden relative transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl animate-fade-in-scale"
+                      onClick={() => router.push(`/game/${item.rawg_id}`)}
+                      className="aspect-[2/3] w-full rounded-2xl shadow-md group overflow-hidden relative transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl animate-fade-in-scale cursor-pointer"
                       style={{ backgroundColor: "var(--hunter-green)", animationDelay: `${i * 0.04}s` }}
                     >
                       {item.background_image && (

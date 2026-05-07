@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useRef, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState, useRef, useCallback } from "react";
 import { apiFetch } from "@/utils/api";
 
 interface MediaResult {
@@ -28,7 +28,20 @@ interface GameResult {
 }
 
 export default function DiscoverPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen w-full flex items-center justify-center" style={{ backgroundColor: "var(--bg-primary)" }}>
+        <div className="w-10 h-10 border-3 rounded-full animate-spin" style={{ borderColor: "var(--dry-sage)", borderTopColor: "var(--pine-teal)" }} />
+      </main>
+    }>
+      <DiscoverContent />
+    </Suspense>
+  );
+}
+
+function DiscoverContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
   const [mediaResults, setMediaResults] = useState<MediaResult[]>([]);
   const [gameResults, setGameResults] = useState<GameResult[]>([]);
@@ -37,6 +50,7 @@ export default function DiscoverPage() {
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const collectionId = searchParams.get("collectionId") || "";
 
   const searchAll = useCallback(async (term: string) => {
     if (term.length < 2) {
@@ -84,25 +98,12 @@ export default function DiscoverPage() {
   const getMediaImage = (item: MediaResult) => item.poster_path ? `https://image.tmdb.org/t/p/w300${item.poster_path}` : "";
 
   const handleMediaCardClick = (item: MediaResult) => {
-    const mediaType = item.media_type === "tv" ? "tv" : "movie";
-    const params = new URLSearchParams({
-      kind: "media",
-      id: String(item.id),
-      mediaType,
-      title: getMediaTitle(item),
-      image: getMediaImage(item),
-    });
-    router.push(`/inventory/add?${params.toString()}`);
+    const route = item.media_type === "tv" ? "tv" : "movie";
+    router.push(`/${route}/${item.id}`);
   };
 
   const handleGameCardClick = (game: GameResult) => {
-    const params = new URLSearchParams({
-      kind: "game",
-      id: String(game.id),
-      title: game.name,
-      image: game.background_image || "",
-    });
-    router.push(`/inventory/add?${params.toString()}`);
+    router.push(`/game/${game.id}`);
   };
 
   return (
