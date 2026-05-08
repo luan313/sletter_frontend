@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/utils/api";
+import GlobalSearch from "@/components/GlobalSearch";
+import LibraryItemCard from "@/components/LibraryItemCard";
+import { CollectionModals } from "@/components/CollectionModals";
 
 interface Item {
   id?: number;
@@ -31,6 +34,10 @@ export default function CollectionsOverviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCollectionMenuId, setActiveCollectionMenuId] = useState<string | null>(null);
+
+  const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
+  const [showEditCollectionModal, setShowEditCollectionModal] = useState(false);
+  const [showDeleteCollectionModal, setShowDeleteCollectionModal] = useState(false);
 
   const fetchCollectionsData = useCallback(async () => {
     try {
@@ -108,6 +115,9 @@ export default function CollectionsOverviewPage() {
             Sletter
           </span>
         </Link>
+        
+        <GlobalSearch searchTypes={["collections"]} />
+
         <div className="flex items-center gap-4">
           <Link href="/inventory" className="text-sm font-medium transition-colors duration-200" style={{ color: "var(--dry-sage)" }}>
             Inventario
@@ -200,10 +210,18 @@ export default function CollectionsOverviewPage() {
                           <Link href={`/collections/${collection.id}/add`} className="block px-4 py-2 text-sm font-medium hover:bg-black/5" style={{ color: "var(--pine-teal)" }}>
                             Adicionar obra
                           </Link>
-                          <button type="button" className="w-full text-left px-4 py-2 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
+                          <button 
+                            type="button" 
+                            onClick={() => { setActiveCollectionMenuId(null); setSelectedCollection(collection); setShowEditCollectionModal(true); }}
+                            className="w-full text-left px-4 py-2 text-sm font-medium" 
+                            style={{ color: "var(--text-muted)" }}>
                             Editar coleção
                           </button>
-                          <button type="button" className="w-full text-left px-4 py-2 text-sm font-medium" style={{ color: "#b91c1c" }}>
+                          <button 
+                            type="button" 
+                            onClick={() => { setActiveCollectionMenuId(null); setSelectedCollection(collection); setShowDeleteCollectionModal(true); }}
+                            className="w-full text-left px-4 py-2 text-sm font-medium" 
+                            style={{ color: "#b91c1c" }}>
                             Excluir coleção
                           </button>
                         </div>
@@ -226,28 +244,18 @@ export default function CollectionsOverviewPage() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                      {items.map((item, index) => {
-                        const image = getImage(item);
-                        return (
-                          <article
-                            key={`${collection.id}-${item.id ?? index}`}
-                            onClick={() => handleItemClick(item)}
-                            className="aspect-[2/3] w-full rounded-2xl shadow-md group overflow-hidden relative transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl animate-fade-in-scale cursor-pointer"
-                            style={{ backgroundColor: "var(--hunter-green)", animationDelay: `${index * 0.03}s` }}
-                          >
-                            {image && <img src={image} alt={getTitle(item)} className="absolute inset-0 w-full h-full object-cover" />}
-                            <div className="absolute top-2 right-2 z-20 text-[10px] px-2 py-1 rounded-full font-semibold" style={{ backgroundColor: "rgba(52,78,65,0.82)", color: "var(--dust-grey)", border: "1px solid rgba(163,177,138,0.55)" }}>
-                              {getStatusLabel(item)}
-                            </div>
-                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: "linear-gradient(to top, rgba(52,78,65,0.95) 35%, rgba(52,78,65,0.35) 65%, transparent)" }} />
-                            <div className="absolute bottom-0 left-0 right-0 p-3">
-                              <span className="font-bold text-xs leading-tight block" style={{ color: "var(--dust-grey)" }}>
-                                {getTitle(item)}
-                              </span>
-                            </div>
-                          </article>
-                        );
-                      })}
+                      {items.map((item, index) => (
+                        <LibraryItemCard
+                          key={`${collection.id}-${item.id ?? index}`}
+                          apiId={item.media_type ? (item.tmdb_id as number) : (item.rawg_id as number)}
+                          type={item.media_type ? (item.media_type as "movie" | "tv") : "game"}
+                          title={getTitle(item)}
+                          image={getImage(item)}
+                          status={item.media_type ? item.watched : item.status}
+                          onRefresh={fetchCollectionsData}
+                          index={index}
+                        />
+                      ))}
                     </div>
                   )}
                 </section>
@@ -256,6 +264,17 @@ export default function CollectionsOverviewPage() {
           </div>
         )}
       </div>
+
+      {selectedCollection && (
+        <CollectionModals
+          collection={selectedCollection}
+          showEdit={showEditCollectionModal}
+          showDelete={showDeleteCollectionModal}
+          onCloseEdit={() => setShowEditCollectionModal(false)}
+          onCloseDelete={() => setShowDeleteCollectionModal(false)}
+          onRefresh={fetchCollectionsData}
+        />
+      )}
     </main>
   );
 }

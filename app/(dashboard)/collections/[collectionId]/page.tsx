@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/utils/api";
+import LibraryItemCard from "@/components/LibraryItemCard";
+import { CollectionModals } from "@/components/CollectionModals";
 
 interface CollectionDetails {
   id: string;
@@ -39,10 +41,11 @@ interface CollectionResponse {
 
 type RenderItem = {
   key: string;
+  apiId: number;
+  type: "movie" | "tv" | "game";
   title: string;
   image: string | null;
-  statusLabel: string;
-  route: string;
+  status: any;
 };
 
 export default function CollectionDetailsPage() {
@@ -57,6 +60,8 @@ export default function CollectionDetailsPage() {
   const [series, setSeries] = useState<MediaItem[]>([]);
   const [games, setGames] = useState<GameItem[]>([]);
   const [showActions, setShowActions] = useState(false);
+  const [showEditCollectionModal, setShowEditCollectionModal] = useState(false);
+  const [showDeleteCollectionModal, setShowDeleteCollectionModal] = useState(false);
 
   const isWatched = (value: MediaItem["watched"]) => value === true || value === "watched";
 
@@ -98,18 +103,20 @@ export default function CollectionDetailsPage() {
   const renderedItems = useMemo<RenderItem[]>(() => {
     const mediaEntries = [...movies, ...series].map((item) => ({
       key: `media-${item.media_type}-${item.id}`,
+      apiId: item.tmdb_id,
+      type: item.media_type as "movie" | "tv",
       title: item.title || "Sem titulo",
       image: item.poster_path ? `https://image.tmdb.org/t/p/w300${item.poster_path}` : null,
-      statusLabel: isWatched(item.watched) ? "Assistido" : "Nao assistido",
-      route: `/${item.media_type}/${item.tmdb_id}`
+      status: item.watched
     }));
 
     const gameEntries = games.map((item) => ({
       key: `game-${item.id}`,
+      apiId: item.rawg_id,
+      type: "game" as const,
       title: item.title || "Sem titulo",
       image: item.background_image || null,
-      statusLabel: item.status === "completed" ? "Finalizado" : item.status === "playing" ? "Jogando" : "Nao jogado",
-      route: `/game/${item.rawg_id}`
+      status: item.status
     }));
 
     return [...mediaEntries, ...gameEntries];
@@ -176,10 +183,18 @@ export default function CollectionDetailsPage() {
                     <Link href={`/collections/${collection.id}/add`} className="block px-4 py-2 text-sm font-medium hover:bg-black/5" style={{ color: "var(--pine-teal)" }}>
                       Adicionar obra
                     </Link>
-                    <button type="button" className="w-full text-left px-4 py-2 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
+                    <button 
+                      type="button" 
+                      onClick={() => { setShowActions(false); setShowEditCollectionModal(true); }}
+                      className="w-full text-left px-4 py-2 text-sm font-medium" 
+                      style={{ color: "var(--text-muted)" }}>
                       Editar coleção
                     </button>
-                    <button type="button" className="w-full text-left px-4 py-2 text-sm font-medium" style={{ color: "#b91c1c" }}>
+                    <button 
+                      type="button" 
+                      onClick={() => { setShowActions(false); setShowDeleteCollectionModal(true); }}
+                      className="w-full text-left px-4 py-2 text-sm font-medium" 
+                      style={{ color: "#b91c1c" }}>
                       Excluir coleção
                     </button>
                   </div>
@@ -211,29 +226,34 @@ export default function CollectionDetailsPage() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {renderedItems.map((item, index) => (
-                  <article
+                  <LibraryItemCard
                     key={item.key}
-                    onClick={() => router.push(item.route)}
-                    className="aspect-[2/3] w-full rounded-2xl shadow-md cursor-pointer group overflow-hidden relative transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl animate-fade-in-scale"
-                    style={{ backgroundColor: "var(--hunter-green)", animationDelay: `${index * 0.03}s` }}
-                  >
-                    {item.image && <img src={item.image} alt={item.title} className="absolute inset-0 w-full h-full object-cover" />}
-                    <div className="absolute top-2 right-2 z-20 text-[10px] px-2 py-1 rounded-full font-semibold" style={{ backgroundColor: "rgba(52,78,65,0.82)", color: "var(--dust-grey)", border: "1px solid rgba(163,177,138,0.55)" }}>
-                      {item.statusLabel}
-                    </div>
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: "linear-gradient(to top, rgba(52,78,65,0.95) 35%, rgba(52,78,65,0.35) 65%, transparent)" }} />
-                    <div className="absolute bottom-0 left-0 right-0 p-3">
-                      <span className="font-bold text-xs leading-tight block" style={{ color: "var(--dust-grey)" }}>
-                        {item.title}
-                      </span>
-                    </div>
-                  </article>
+                    apiId={item.apiId}
+                    type={item.type}
+                    title={item.title}
+                    image={item.image}
+                    status={item.status}
+                    onRefresh={fetchCollection}
+                    index={index}
+                  />
                 ))}
               </div>
             )}
           </section>
         )}
       </div>
+
+      {collection && (
+        <CollectionModals
+          collection={collection}
+          showEdit={showEditCollectionModal}
+          showDelete={showDeleteCollectionModal}
+          onCloseEdit={() => setShowEditCollectionModal(false)}
+          onCloseDelete={() => setShowDeleteCollectionModal(false)}
+          onRefresh={fetchCollection}
+          onDeleted={() => router.push("/collections")}
+        />
+      )}
     </main>
   );
 }

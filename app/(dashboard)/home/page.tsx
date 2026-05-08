@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { apiFetch } from "@/utils/api";
 
+import GlobalSearch from "@/components/GlobalSearch";
+import LibraryItemCard from "@/components/LibraryItemCard";
+import { CollectionModals } from "@/components/CollectionModals";
+
 interface PreviewItem {
   id?: number;
   tmdb_id?: number;
@@ -46,6 +50,10 @@ export default function HomePage() {
   const [collectionProgress, setCollectionProgress] = useState<Record<string, number>>({});
   const [collectionTotalItems, setCollectionTotalItems] = useState<Record<string, number>>({});
   const [activeCollectionMenuId, setActiveCollectionMenuId] = useState<string | null>(null);
+  
+  const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
+  const [showEditCollectionModal, setShowEditCollectionModal] = useState(false);
+  const [showDeleteCollectionModal, setShowDeleteCollectionModal] = useState(false);
 
   const profileRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -69,7 +77,7 @@ export default function HomePage() {
           const total = movies.length + series.length + games.length;
           if (total === 0) return [collection.id, { progress: 0, total: 0 }] as const;
 
-          const completedMedia = [...movies, ...series].filter((item) => Boolean(item.watched)).length;
+          const completedMedia = [...movies, ...series].filter((item) => item.watched === true || item.watched === "watched").length;
           const completedGames = games.filter((game) => game.status === "completed").length;
           const percentage = Math.round(((completedMedia + completedGames) / total) * 100);
 
@@ -175,14 +183,7 @@ export default function HomePage() {
           <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--dust-grey)' }}>Sletter</span>
         </Link>
 
-        <div className="flex-1 max-w-md mx-8 hidden sm:block">
-          <input type="search" placeholder="Pesquisar coleções ou itens..."
-            className="w-full rounded-xl px-5 py-2.5 text-sm transition-all duration-300 focus:outline-none focus:ring-2"
-            style={{ backgroundColor: 'rgba(218,215,205,0.12)', border: '1px solid rgba(163,177,138,0.3)', color: 'var(--dust-grey)' }}
-            onFocus={(e) => { e.target.style.backgroundColor = 'rgba(218,215,205,0.2)'; e.target.style.borderColor = 'var(--dry-sage)'; }}
-            onBlur={(e) => { e.target.style.backgroundColor = 'rgba(218,215,205,0.12)'; e.target.style.borderColor = 'rgba(163,177,138,0.3)'; }}
-          />
-        </div>
+        <GlobalSearch searchTypes={["media", "games", "collections"]} />
 
         <div className="flex items-center gap-4">
           <div className="relative" ref={profileRef}>
@@ -320,10 +321,18 @@ export default function HomePage() {
                             <Link href={`/collections/${col.id}/add`} className="block px-4 py-2 text-sm font-medium hover:bg-black/5" style={{ color: "var(--pine-teal)" }}>
                               Adicionar obra
                             </Link>
-                            <button type="button" className="w-full text-left px-4 py-2 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
+                            <button 
+                              type="button" 
+                              onClick={() => { setActiveCollectionMenuId(null); setSelectedCollection(col); setShowEditCollectionModal(true); }}
+                              className="w-full text-left px-4 py-2 text-sm font-medium" 
+                              style={{ color: "var(--text-muted)" }}>
                               Editar coleção
                             </button>
-                            <button type="button" className="w-full text-left px-4 py-2 text-sm font-medium" style={{ color: "#b91c1c" }}>
+                            <button 
+                              type="button" 
+                              onClick={() => { setActiveCollectionMenuId(null); setSelectedCollection(col); setShowDeleteCollectionModal(true); }}
+                              className="w-full text-left px-4 py-2 text-sm font-medium" 
+                              style={{ color: "#b91c1c" }}>
                               Excluir coleção
                             </button>
                           </div>
@@ -361,28 +370,18 @@ export default function HomePage() {
                 )}
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {col.preview_items.slice(0, 5).map((item, i) => {
-                    const img = getItemImage(item);
-                    return (
-                      <div key={`${col.id}-${item.id || i}`}
-                        onClick={() => handleItemClick(item)}
-                        className="aspect-[2/3] w-full rounded-2xl shadow-md cursor-pointer group overflow-hidden relative transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl animate-fade-in-scale"
-                        style={{ backgroundColor: 'var(--hunter-green)', animationDelay: `${0.1 + i * 0.07}s` }}>
-                        {img && <img src={img} alt={getItemTitle(item)} className="absolute inset-0 w-full h-full object-cover" />}
-                        <div className="absolute top-2 right-2 z-20 text-[10px] px-2 py-1 rounded-full font-semibold"
-                          style={{ backgroundColor: 'rgba(52,78,65,0.82)', color: 'var(--dust-grey)', border: '1px solid rgba(163,177,138,0.55)' }}>
-                          {getStatusLabel(item)}
-                        </div>
-                        <div className="absolute inset-0 opacity-70 group-hover:opacity-90 transition-opacity duration-300"
-                          style={{ background: 'linear-gradient(to top, rgba(52,78,65,0.95), rgba(52,78,65,0.2), transparent)' }} />
-                        <div className="absolute bottom-0 left-0 right-0 p-4">
-                          <span className="relative z-10 font-bold text-sm tracking-wide drop-shadow-lg leading-snug" style={{ color: 'var(--dust-grey)' }}>
-                            {getItemTitle(item)}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {col.preview_items.slice(0, 5).map((item, i) => (
+                    <LibraryItemCard
+                      key={`${col.id}-${item.id || i}`}
+                      apiId={item.media_type ? (item.tmdb_id as number) : (item.rawg_id as number)}
+                      type={item.media_type ? (item.media_type as "movie" | "tv") : "game"}
+                      title={getItemTitle(item)}
+                      image={getItemImage(item)}
+                      status={item.media_type ? item.watched : item.status}
+                      onRefresh={fetchCollections}
+                      index={i}
+                    />
+                  ))}
 
                   {(collectionTotalItems[col.id] ?? 0) === 0 && (
                     <div className="relative" data-collection-menu-root>
@@ -407,10 +406,18 @@ export default function HomePage() {
                           <Link href={`/collections/${col.id}/add`} className="block px-4 py-2 text-sm font-medium hover:bg-black/5" style={{ color: "var(--pine-teal)" }}>
                             Adicionar obra
                           </Link>
-                          <button type="button" className="w-full text-left px-4 py-2 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
+                          <button 
+                            type="button" 
+                            onClick={() => { setActiveCollectionMenuId(null); setSelectedCollection(col); setShowEditCollectionModal(true); }}
+                            className="w-full text-left px-4 py-2 text-sm font-medium" 
+                            style={{ color: "var(--text-muted)" }}>
                             Editar coleção
                           </button>
-                          <button type="button" className="w-full text-left px-4 py-2 text-sm font-medium" style={{ color: "#b91c1c" }}>
+                          <button 
+                            type="button" 
+                            onClick={() => { setActiveCollectionMenuId(null); setSelectedCollection(col); setShowDeleteCollectionModal(true); }}
+                            className="w-full text-left px-4 py-2 text-sm font-medium" 
+                            style={{ color: "#b91c1c" }}>
                             Excluir coleção
                           </button>
                         </div>
@@ -459,6 +466,17 @@ export default function HomePage() {
             </form>
           </div>
         </div>
+      )}
+
+      {selectedCollection && (
+        <CollectionModals
+          collection={selectedCollection}
+          showEdit={showEditCollectionModal}
+          showDelete={showDeleteCollectionModal}
+          onCloseEdit={() => setShowEditCollectionModal(false)}
+          onCloseDelete={() => setShowDeleteCollectionModal(false)}
+          onRefresh={fetchCollections}
+        />
       )}
     </main>
   );

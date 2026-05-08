@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/utils/api";
+import GlobalSearch from "@/components/GlobalSearch";
+import LibraryItemCard from "@/components/LibraryItemCard";
 
 interface CatalogMediaItem {
   id: number;
@@ -91,6 +93,9 @@ export default function InventoryPage() {
             Sletter
           </span>
         </Link>
+        
+        <GlobalSearch searchTypes={["media", "games"]} />
+
         <div className="flex items-center gap-4">
           <Link href="/discover" className="text-sm font-medium transition-colors duration-200" style={{ color: "var(--dry-sage)" }}>
             Descobrir
@@ -167,25 +172,16 @@ export default function InventoryPage() {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                   {movies.map((item, i) => (
-                    <article
+                    <LibraryItemCard
                       key={`movie-${item.id}`}
-                      onClick={() => router.push(`/movie/${item.tmdb_id}`)}
-                      className="aspect-[2/3] w-full rounded-2xl shadow-md group overflow-hidden relative transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl animate-fade-in-scale cursor-pointer"
-                      style={{ backgroundColor: "var(--hunter-green)", animationDelay: `${i * 0.04}s` }}
-                    >
-                      {item.poster_path && (
-                        <img src={`https://image.tmdb.org/t/p/w300${item.poster_path}`} alt={item.title} className="absolute inset-0 w-full h-full object-cover" />
-                      )}
-                      <div className="absolute top-2 right-2 z-20 text-[10px] px-2 py-1 rounded-full font-semibold" style={statusBadgeStyle}>
-                        {getMediaStatusLabel(item.watched)}
-                      </div>
-                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: "linear-gradient(to top, rgba(52,78,65,0.95) 35%, rgba(52,78,65,0.35) 65%, transparent)" }} />
-                      <div className="absolute bottom-0 left-0 right-0 p-3">
-                        <span className="font-bold text-xs leading-tight block" style={{ color: "var(--dust-grey)" }}>
-                          {item.title}
-                        </span>
-                      </div>
-                    </article>
+                      apiId={item.tmdb_id}
+                      type="movie"
+                      title={item.title}
+                      image={item.poster_path ? `https://image.tmdb.org/t/p/w300${item.poster_path}` : null}
+                      status={item.watched}
+                      onRefresh={fetchCatalog}
+                      index={i}
+                    />
                   ))}
                 </div>
               )}
@@ -207,25 +203,16 @@ export default function InventoryPage() {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                   {series.map((item, i) => (
-                    <article
+                    <LibraryItemCard
                       key={`series-${item.id}`}
-                      onClick={() => router.push(`/tv/${item.tmdb_id}`)}
-                      className="aspect-[2/3] w-full rounded-2xl shadow-md group overflow-hidden relative transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl animate-fade-in-scale cursor-pointer"
-                      style={{ backgroundColor: "var(--hunter-green)", animationDelay: `${i * 0.04}s` }}
-                    >
-                      {item.poster_path && (
-                        <img src={`https://image.tmdb.org/t/p/w300${item.poster_path}`} alt={item.title} className="absolute inset-0 w-full h-full object-cover" />
-                      )}
-                      <div className="absolute top-2 right-2 z-20 text-[10px] px-2 py-1 rounded-full font-semibold" style={statusBadgeStyle}>
-                        {getMediaStatusLabel(item.watched)}
-                      </div>
-                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: "linear-gradient(to top, rgba(52,78,65,0.95) 35%, rgba(52,78,65,0.35) 65%, transparent)" }} />
-                      <div className="absolute bottom-0 left-0 right-0 p-3">
-                        <span className="font-bold text-xs leading-tight block" style={{ color: "var(--dust-grey)" }}>
-                          {item.title}
-                        </span>
-                      </div>
-                    </article>
+                      apiId={item.tmdb_id}
+                      type="tv"
+                      title={item.title}
+                      image={item.poster_path ? `https://image.tmdb.org/t/p/w300${item.poster_path}` : null}
+                      status={item.watched}
+                      onRefresh={fetchCatalog}
+                      index={i}
+                    />
                   ))}
                 </div>
               )}
@@ -247,25 +234,16 @@ export default function InventoryPage() {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                   {games.map((item, i) => (
-                    <article
+                    <LibraryItemCard
                       key={`game-${item.id}`}
-                      onClick={() => router.push(`/game/${item.rawg_id}`)}
-                      className="aspect-[2/3] w-full rounded-2xl shadow-md group overflow-hidden relative transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl animate-fade-in-scale cursor-pointer"
-                      style={{ backgroundColor: "var(--hunter-green)", animationDelay: `${i * 0.04}s` }}
-                    >
-                      {item.background_image && (
-                        <img src={item.background_image} alt={item.title} className="absolute inset-0 w-full h-full object-cover" />
-                      )}
-                      <div className="absolute top-2 right-2 z-20 text-[10px] px-2 py-1 rounded-full font-semibold" style={statusBadgeStyle}>
-                        {getGameStatusLabel(item.status)}
-                      </div>
-                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: "linear-gradient(to top, rgba(52,78,65,0.95) 35%, rgba(52,78,65,0.35) 65%, transparent)" }} />
-                      <div className="absolute bottom-0 left-0 right-0 p-3">
-                        <span className="font-bold text-xs leading-tight block" style={{ color: "var(--dust-grey)" }}>
-                          {item.title}
-                        </span>
-                      </div>
-                    </article>
+                      apiId={item.rawg_id}
+                      type="game"
+                      title={item.title}
+                      image={item.background_image || null}
+                      status={item.status}
+                      onRefresh={fetchCatalog}
+                      index={i}
+                    />
                   ))}
                 </div>
               )}

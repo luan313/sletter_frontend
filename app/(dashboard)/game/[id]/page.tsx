@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/utils/api";
 
@@ -70,7 +70,24 @@ export default function GameDetailPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
 
+  // Edit / Delete Modals
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const closeMenu = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", closeMenu);
+    return () => document.removeEventListener("mousedown", closeMenu);
+  }, []);
 
   const fetchDetails = useCallback(async () => {
     try {
@@ -90,8 +107,9 @@ export default function GameDetailPage() {
   const checkLibrary = useCallback(async () => {
     try {
       setLibraryLoading(true);
-      await apiFetch(`/game/${id}`);
+      const data = await apiFetch(`/game/${id}`);
       setInLibrary(true);
+      setGameStatus(data.status || "unplayed");
     } catch {
       setInLibrary(false);
     } finally {
@@ -140,6 +158,36 @@ export default function GameDetailPage() {
       setSubmitError(err.message || "Erro ao adicionar jogo.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await apiFetch(`/game/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ status: gameStatus }),
+      });
+      setShowEditModal(false);
+      checkLibrary();
+    } catch (err) {
+      alert("Erro ao atualizar o status.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await apiFetch(`/game/${id}`, { method: "DELETE" });
+      setShowDeleteModal(false);
+      setInLibrary(false);
+    } catch (err) {
+      alert("Erro ao deletar o jogo.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -216,10 +264,32 @@ export default function GameDetailPage() {
             <div className="mt-4 space-y-3">
               {!libraryLoading && (
                 inLibrary ? (
-                  <div className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold"
-                    style={{ backgroundColor: "rgba(163,177,138,0.3)", color: "var(--hunter-green)", border: "1px solid rgba(163,177,138,0.5)" }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                    Na sua biblioteca
+                  <div className="w-full grid grid-cols-[1fr_auto] gap-2">
+                    <div className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold"
+                      style={{ backgroundColor: "rgba(163,177,138,0.3)", color: "var(--hunter-green)", border: "1px solid rgba(163,177,138,0.5)" }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                      Na sua biblioteca
+                    </div>
+                    <div className="relative" ref={menuRef}>
+                      <button type="button" onClick={() => setShowMenu(!showMenu)}
+                        className="h-full px-3 rounded-xl flex items-center justify-center transition-all duration-200 hover:bg-black/5 cursor-pointer"
+                        style={{ color: "var(--pine-teal)", border: "1px solid rgba(163,177,138,0.5)" }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" /></svg>
+                      </button>
+                      {showMenu && (
+                        <div className="absolute right-0 mt-2 min-w-[160px] rounded-xl shadow-lg py-1 z-40 animate-fade-in"
+                          style={{ backgroundColor: "#fff", border: "1px solid rgba(163,177,138,0.4)" }}>
+                          <button type="button" className="w-full text-left px-4 py-2 text-sm font-medium hover:bg-black/5" style={{ color: "var(--pine-teal)" }}
+                            onClick={() => { setShowMenu(false); setShowEditModal(true); }}>
+                            Alterar status
+                          </button>
+                          <button type="button" className="w-full text-left px-4 py-2 text-sm font-medium hover:bg-black/5" style={{ color: "#b91c1c" }}
+                            onClick={() => { setShowMenu(false); setShowDeleteModal(true); }}>
+                            Deletar
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <button onClick={handleOpenAddModal}
@@ -429,6 +499,56 @@ export default function GameDetailPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Status Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(52,78,65,0.6)', backdropFilter: 'blur(4px)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowEditModal(false); }}>
+          <div className="w-full max-w-sm rounded-2xl shadow-2xl p-6 animate-fade-in-scale" style={{ backgroundColor: '#fff' }}>
+            <h2 className="text-xl font-bold mb-1" style={{ color: 'var(--pine-teal)' }}>Alterar Status</h2>
+            <p className="text-sm mb-5" style={{ color: 'var(--text-muted)' }}>Escolha o novo status para "{details.name}".</p>
+            <form onSubmit={handleEdit} className="space-y-4">
+              <select value={gameStatus} onChange={(e) => setGameStatus(e.target.value as GameStatus)}
+                className="w-full rounded-xl px-4 py-3 text-sm transition-all duration-300 focus:outline-none"
+                style={{ border: '1.5px solid var(--border)', color: 'var(--pine-teal)' }}>
+                <option value="completed">Finalizado</option>
+                <option value="playing">Jogando</option>
+                <option value="unplayed">Não jogado</option>
+              </select>
+              <div className="flex gap-3 justify-end mt-6">
+                <button type="button" onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer"
+                  style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+                <button type="submit" disabled={isSubmitting}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold shadow-md transition-all duration-300 hover:scale-105 disabled:opacity-50 cursor-pointer"
+                  style={{ backgroundColor: 'var(--pine-teal)', color: 'var(--dust-grey)' }}>
+                  {isSubmitting ? "Salvando..." : "Salvar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(52,78,65,0.6)', backdropFilter: 'blur(4px)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowDeleteModal(false); }}>
+          <div className="w-full max-w-sm rounded-2xl shadow-2xl p-6 animate-fade-in-scale" style={{ backgroundColor: '#fff' }}>
+            <h2 className="text-xl font-bold mb-2 text-red-600">Deletar Obra</h2>
+            <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>Tem certeza que deseja remover "{details.name}" da sua biblioteca? Esta ação não pode ser desfeita.</p>
+            <div className="flex gap-3 justify-end">
+              <button type="button" onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer"
+                style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+              <button type="button" onClick={handleDelete} disabled={isDeleting}
+                className="px-4 py-2 rounded-xl text-sm font-semibold shadow-md transition-all duration-300 hover:scale-105 disabled:opacity-50 cursor-pointer bg-red-600 text-white">
+                {isDeleting ? "Deletando..." : "Deletar"}
+              </button>
+            </div>
           </div>
         </div>
       )}
